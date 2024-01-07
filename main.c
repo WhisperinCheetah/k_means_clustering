@@ -23,18 +23,18 @@ typedef struct _Cluster {
     Vector2Int* cluster_points;
 } Cluster;
 
-void draw_points(Vector2Int*, int);
-void print_points(Vector2Int*, int);
+int distance_between_points(Vector2Int, Vector2Int);
+int find_nearest_centroid(Vector2Int, Vector2Int*, int);
+Vector2Int calculate_new_centroid(Cluster);
 Vector2Int* generate_points(int, int, int, int);
 Vector2Int* init_centroids(Vector2Int*, int, int);
-Cluster* init_empty_clusters(int);
-int find_nearest_centroid(Vector2Int, Vector2Int*, int);
-void add_point_to_cluster(Vector2Int, int, Cluster*);
-Vector2Int calculate_new_centroid(Cluster);
-int distance_between_points(Vector2Int, Vector2Int);
-void draw_centroids(Vector2Int*, int);
 Cluster init_empty_cluster();
+Cluster* init_empty_clusters(int);
+void add_point_to_cluster(Vector2Int, int, Cluster*);
+void draw_points(Vector2Int*, int);
+void draw_centroids(Vector2Int*, int);
 void draw_clusters(Cluster*, int);
+void print_points(Vector2Int*, int);
 void free_clusters(Cluster* clusters, int k);
 
 
