@@ -4,10 +4,12 @@
 #include <time.h>
 #include "raylib.h"
 
-#define AMOUNT_OF_POINTS 1200
-#define AMOUNT_OF_CLUSTERS 6
-#define WINDOW_X 800
-#define WINDOW_Y 450
+#define AMOUNT_OF_POINTS 20000
+#define AMOUNT_OF_CLUSTERS 10
+#define WINDOW_X 1200
+#define WINDOW_Y 800
+#define UNIFORM false
+#define CENTER_CENTROIDS false
 
 typedef struct _Vector2Int {
     int x;
@@ -20,11 +22,13 @@ typedef struct _Cluster {
     Vector2Int* cluster_points;
 } Cluster;
 
-int distance_between_points(Vector2Int, Vector2Int);
+long distance_between_points(Vector2Int, Vector2Int);
 int find_nearest_centroid(Vector2Int, Vector2Int*, int);
 Vector2Int calculate_new_centroid(Cluster);
 Vector2Int* generate_points(int, int, int, int);
+Vector2Int* generate_uniform_points(int, int, int);
 Vector2Int* init_centroids(Vector2Int*, int, int);
+Vector2Int* init_centroids_center(int);
 Cluster init_empty_cluster();
 Cluster* init_empty_clusters(int);
 void add_point_to_cluster(Vector2Int, int, Cluster*);
@@ -39,8 +43,13 @@ int main() {
     InitWindow(WINDOW_X, WINDOW_Y, "K-means clustering"); // GetRandomValue seed is created with initwindow
     SetRandomSeed(time(NULL));
 
-    Vector2Int* points = generate_points(AMOUNT_OF_CLUSTERS, AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
-    Vector2Int* centroids = init_centroids(points, AMOUNT_OF_POINTS, AMOUNT_OF_CLUSTERS);
+    Vector2Int* points;
+    if (UNIFORM) points = generate_uniform_points(AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
+    else points = generate_points(AMOUNT_OF_CLUSTERS, AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
+
+    Vector2Int* centroids;
+    if (CENTER_CENTROIDS) centroids = init_centroids_center(AMOUNT_OF_CLUSTERS);
+    else centroids = init_centroids(points, AMOUNT_OF_POINTS, AMOUNT_OF_CLUSTERS);
     Cluster* clusters = NULL; // clusters are of size 100, overflows not detected.
 
     while (!WindowShouldClose()) {
@@ -57,6 +66,16 @@ int main() {
                 }
             }
 
+            if (IsKeyPressed(KEY_H)) {
+                free(centroids);
+                if (clusters != NULL) free_clusters(clusters, AMOUNT_OF_CLUSTERS);
+
+                if (CENTER_CENTROIDS) centroids = init_centroids_center(AMOUNT_OF_CLUSTERS);
+                else centroids = init_centroids(points, AMOUNT_OF_POINTS, AMOUNT_OF_CLUSTERS);
+
+                clusters = NULL;
+            }
+
             if (IsKeyPressed(KEY_R)) {
                 free(centroids);
                 free(points);
@@ -64,8 +83,12 @@ int main() {
 
                 SetRandomSeed(time(NULL));
 
-                points = generate_points(AMOUNT_OF_CLUSTERS, AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
-                centroids = init_centroids(points, AMOUNT_OF_POINTS, AMOUNT_OF_CLUSTERS);
+                if (UNIFORM) points = generate_uniform_points(AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
+                else points = generate_points(AMOUNT_OF_CLUSTERS, AMOUNT_OF_POINTS, WINDOW_X, WINDOW_Y);
+
+                if (CENTER_CENTROIDS) centroids = init_centroids_center(AMOUNT_OF_CLUSTERS);
+                else centroids = init_centroids(points, AMOUNT_OF_POINTS, AMOUNT_OF_CLUSTERS);
+
                 clusters = NULL;
             }
 
@@ -113,11 +136,11 @@ void add_point_to_cluster(Vector2Int point, int centroid_index, Cluster* cluster
 }
 
 int find_nearest_centroid(Vector2Int point, Vector2Int* centroids, int k) {
-    int min_distance = distance_between_points(point, centroids[0]);
+    long min_distance = distance_between_points(point, centroids[0]);
     int min_dist_index = 0;
 
     for (int i = 1; i < k; i++) {
-        int distance = distance_between_points(point, centroids[i]);
+        long distance = distance_between_points(point, centroids[i]);
         if (distance < min_distance) {
             min_distance = distance;
             min_dist_index = i;
@@ -127,7 +150,7 @@ int find_nearest_centroid(Vector2Int point, Vector2Int* centroids, int k) {
     return min_dist_index;
 }
 
-int distance_between_points(Vector2Int a, Vector2Int b) {
+long distance_between_points(Vector2Int a, Vector2Int b) {
     return (b.x - a.x)*(b.x - a.x) + (b.y - a.y)*(b.y - a.y);
 }
 
@@ -140,6 +163,15 @@ Vector2Int* init_centroids(Vector2Int* points, int amount, int k) {
         centoids[i] = points[chosen[i]];
     }
 
+    return centoids;
+}
+
+Vector2Int* init_centroids_center(int k) {
+    Vector2Int* centoids = (Vector2Int*)malloc(sizeof(Vector2Int) * k);
+    for (int i = 0; i < k; i++) {
+        Vector2Int point = { (WINDOW_X / 2) + i * 5, (WINDOW_Y / 2) + i * 5};
+        centoids[i] = point;
+    }
     return centoids;
 }
 
@@ -202,10 +234,13 @@ void draw_clusters(Cluster* clusters, int k) {
         ,BEIGE
         ,BROWN
         ,DARKBROWN
+        ,WHITE
+        ,MAGENTA
+        ,RAYWHITE
     };
     for (int i = 0; i < k; i++) {
         for (int j = 0; j < clusters[i].amount; j++) {
-            DrawCircle(clusters[i].cluster_points[j].x, clusters[i].cluster_points[j].y, 3.0, colors[i]);
+            DrawCircle(clusters[i].cluster_points[j].x, clusters[i].cluster_points[j].y, 3.0, colors[i%22]);
         }
     }
 }
@@ -221,7 +256,8 @@ Vector2Int* generate_points(int k, int amount, int rangeX, int rangeY) {
         double radius = 150.0;
 
         for (int i = 0; i < amount/k; i++) {
-            double r = radius * sqrt(((double)GetRandomValue(0, 1000)) / 1000.0);
+            double dist = sqrt(((double)GetRandomValue(0, 1000)) / 1000.0);
+            double r = radius * dist * dist;
             double theta = (((double)GetRandomValue(0, 1000)) / 1000.0) * 2 * (double)PI;
 
             int x = c_x + (int)floor(r * cos(theta));
@@ -230,6 +266,19 @@ Vector2Int* generate_points(int k, int amount, int rangeX, int rangeY) {
             array[index] = point;
             index++;
         }
+    }
+
+    return array;
+}
+
+Vector2Int* generate_uniform_points(int amount, int rangeX, int rangeY) {
+    Vector2Int* array = (Vector2Int*)malloc(sizeof(Vector2Int) * amount);
+
+    for (int i = 0; i < amount; i++) {
+        int x = GetRandomValue(0, rangeX);
+        int y = GetRandomValue(0, rangeY);
+        Vector2Int point = {x, y};
+        array[i] = point;
     }
 
     return array;
