@@ -4,9 +4,6 @@
 #include <time.h>
 #include "raylib.h"
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-
 #define AMOUNT_OF_POINTS 1200
 #define AMOUNT_OF_CLUSTERS 6
 #define WINDOW_X 800
